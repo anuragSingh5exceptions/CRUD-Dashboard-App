@@ -16,4 +16,16 @@ class AuthValidationTest {
     fun `sign up accepts non-empty fields`() {
         assertNull(validateSignUpFields("user", "user@example.com", "password"))
     }
+
+    @Test
+    fun `admin configuration requires every field`() {
+        assertEquals("All fields are required", validateAdminConfigFields("", "admin", "password"))
+        assertEquals("All fields are required", validateAdminConfigFields("https://example.com", "", "password"))
+        assertEquals("All fields are required", validateAdminConfigFields("https://example.com", "admin", ""))
+    }
+
+    @Test
+    fun `admin configuration accepts non-empty fields`() {
+        assertNull(validateAdminConfigFields("https://example.com", "admin", "password"))
+    }
 }

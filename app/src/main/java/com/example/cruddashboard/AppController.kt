@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.example.cruddashboard.data.CustomerRepository
+import com.example.cruddashboard.model.AdminConfig
 import com.example.cruddashboard.model.Customer
 import com.example.cruddashboard.model.CustomerStatus
 
@@ -43,6 +44,20 @@ class AppController(private val repository: CustomerRepository) {
         searchQuery = ""
     }
 
+    fun loadAdminConfig(): AdminConfig = repository.loadAdminConfig()
+
+    fun saveAdminConfig(baseUrl: String, adminName: String, adminPassword: String): String? {
+        validateAdminConfigFields(baseUrl, adminName, adminPassword)?.let { return it }
+        repository.saveAdminConfig(
+            AdminConfig(
+                baseUrl = baseUrl.trim(),
+                adminName = adminName.trim(),
+                adminPassword = adminPassword
+            )
+        )
+        return null
+    }
+
     fun saveCustomer(
         existingId: Long?, name: String, email: String, phone: String,
         company: String, status: CustomerStatus
@@ -72,3 +87,6 @@ class AppController(private val repository: CustomerRepository) {
 
 internal fun validateSignUpFields(username: String, email: String, password: String): String? =
     if (username.isBlank() || email.isBlank() || password.isBlank()) "All fields are required" else null
+
+internal fun validateAdminConfigFields(baseUrl: String, adminName: String, adminPassword: String): String? =
+    if (baseUrl.isBlank() || adminName.isBlank() || adminPassword.isBlank()) "All fields are required" else null
