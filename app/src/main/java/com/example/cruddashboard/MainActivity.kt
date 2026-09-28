@@ -302,7 +302,13 @@ private fun DashboardScreen(controller: AppController) {
         contentWindowInsets = WindowInsets(0),
         snackbarHost = { SnackbarHost(snackbar) },
         floatingActionButton = {
-            FloatingActionButton(onClick = { editing = null; showForm = true }, containerColor = Indigo, contentColor = Color.White, shape = CircleShape) {
+            FloatingActionButton(
+                onClick = { editing = null; showForm = true },
+                modifier = Modifier.navigationBarsPadding(),
+                containerColor = Indigo,
+                contentColor = Color.White,
+                shape = CircleShape
+            ) {
                 Icon(Icons.Default.Add, "Add customer")
             }
         }
