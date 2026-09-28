@@ -1,6 +1,7 @@
 package com.example.cruddashboard.data
 
 import android.content.Context
+import com.example.cruddashboard.model.AdminConfig
 import com.example.cruddashboard.model.Customer
 import com.example.cruddashboard.model.CustomerStatus
 import org.json.JSONArray
@@ -48,6 +49,17 @@ class CustomerRepository(context: Context) {
         get() = preferences.getBoolean(KEY_SESSION, false)
         set(value) { preferences.edit().putBoolean(KEY_SESSION, value).apply() }
 
+    fun loadAdminConfig() = AdminConfig(
+        baseUrl = preferences.getString(KEY_BASE_URL, "").orEmpty(),
+        adminName = preferences.getString(KEY_ADMIN_NAME, "").orEmpty(),
+        adminPassword = preferences.getString(KEY_ADMIN_PASSWORD, "").orEmpty()
+    )
+
+    fun saveAdminConfig(config: AdminConfig) {
+        preferences.edit()
+            .putString(KEY_BASE_URL, config.baseUrl)
+            .putString(KEY_ADMIN_NAME, config.adminName)
+            .putString(KEY_ADMIN_PASSWORD, config.adminPassword)
     fun passwordFor(email: String): String? =
         if (preferences.getString(KEY_RESET_EMAIL, null)?.equals(email.trim(), ignoreCase = true) == true) {
             preferences.getString(KEY_RESET_PASSWORD, null)
@@ -72,6 +84,9 @@ class CustomerRepository(context: Context) {
     companion object {
         private const val KEY_CUSTOMERS = "customers"
         private const val KEY_SESSION = "logged_in"
+        private const val KEY_BASE_URL = "admin_base_url"
+        private const val KEY_ADMIN_NAME = "admin_name"
+        private const val KEY_ADMIN_PASSWORD = "admin_password"
         private const val KEY_RESET_EMAIL = "reset_email"
         private const val KEY_RESET_PASSWORD = "reset_password"
     }

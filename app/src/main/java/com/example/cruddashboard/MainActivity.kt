@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,11 +40,13 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
@@ -92,6 +95,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.cruddashboard.data.CustomerRepository
+import com.example.cruddashboard.model.AdminConfig
 import com.example.cruddashboard.model.Customer
 import com.example.cruddashboard.model.CustomerStatus
 import kotlinx.coroutines.launch
@@ -128,6 +132,25 @@ class MainActivity : ComponentActivity() {
             MaterialTheme(colorScheme = AppColors) {
                 val context = LocalContext.current.applicationContext
                 val controller = remember { AppController(CustomerRepository(context)) }
+                var showSignUp by remember { mutableStateOf(false) }
+                var showAdminConfig by remember { mutableStateOf(false) }
+                Surface(modifier = Modifier.fillMaxSize(), color = Canvas) {
+                    when {
+                        controller.isLoggedIn -> DashboardScreen(controller)
+                        showAdminConfig -> AdminConfigScreen(
+                            initialConfig = controller.loadAdminConfig(),
+                            onBack = { showAdminConfig = false },
+                            onSave = { baseUrl, adminName, adminPassword ->
+                                controller.saveAdminConfig(baseUrl, adminName, adminPassword).also { error ->
+                                    if (error == null) showAdminConfig = false
+                                }
+                            }
+                        )
+                        showSignUp -> SignUpScreen(controller, onSignIn = { showSignUp = false })
+                        else -> LoginScreen(
+                            controller,
+                            onSignUp = { showSignUp = true },
+                            onAdminConfig = { showAdminConfig = true }
                 var authScreen by remember { mutableStateOf(AuthScreen.LOGIN) }
                 Surface(modifier = Modifier.fillMaxSize(), color = Canvas) {
                     when {
@@ -147,6 +170,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
+private fun LoginScreen(controller: AppController, onSignUp: () -> Unit, onAdminConfig: () -> Unit) {
 private fun LoginScreen(controller: AppController, onSignUp: () -> Unit, onForgotPassword: () -> Unit) {
     var email by remember { mutableStateOf("admin@cliently.app") }
     var password by remember { mutableStateOf("password") }
@@ -165,7 +189,11 @@ private fun LoginScreen(controller: AppController, onSignUp: () -> Unit, onForgo
     ) {
         Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             Box(
-                modifier = Modifier.size(72.dp).clip(RoundedCornerShape(22.dp)).background(Indigo),
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(Indigo)
+                    .combinedClickable(onClick = {}, onLongClick = onAdminConfig),
                 contentAlignment = Alignment.Center
             ) {
                 Text("C", color = Color.White, fontWeight = FontWeight.Black, fontSize = 34.sp)
@@ -222,6 +250,23 @@ private fun LoginScreen(controller: AppController, onSignUp: () -> Unit, onForgo
 }
 
 @Composable
+private fun AdminConfigScreen(
+    initialConfig: AdminConfig,
+    onBack: () -> Unit,
+    onSave: (String, String, String) -> String?
+) {
+    var baseUrl by remember(initialConfig) { mutableStateOf(initialConfig.baseUrl) }
+    var adminName by remember(initialConfig) { mutableStateOf(initialConfig.adminName) }
+    var adminPassword by remember(initialConfig) { mutableStateOf(initialConfig.adminPassword) }
+    var passwordVisible by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val focusManager = LocalFocusManager.current
+    val submit = {
+        focusManager.clearFocus()
+        error = onSave(baseUrl, adminName, adminPassword)
+    }
+
+    BackHandler(onBack = onBack)
 private fun ForgotPasswordScreen(controller: AppController, onSignIn: () -> Unit) {
     var email by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
@@ -242,6 +287,84 @@ private fun ForgotPasswordScreen(controller: AppController, onSignIn: () -> Unit
             .fillMaxSize()
             .background(Brush.verticalGradient(listOf(Color(0xFFF0F1FF), Canvas, Color.White)))
             .statusBarsPadding()
+            .navigationBarsPadding()
+            .imePadding()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp, vertical = 20.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+            }
+            Column(Modifier.padding(start = 4.dp)) {
+                Text("Admin configuration", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = Ink)
+                Text("Configure this app installation", color = Muted, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+        Spacer(Modifier.height(28.dp))
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(3.dp),
+            shape = RoundedCornerShape(24.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                OutlinedTextField(
+                    value = baseUrl,
+                    onValueChange = { baseUrl = it; error = null },
+                    label = { Text("Base URL") },
+                    leadingIcon = { Icon(Icons.Default.Language, null) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Next),
+                    shape = RoundedCornerShape(14.dp),
+                    isError = error != null && baseUrl.isBlank()
+                )
+                OutlinedTextField(
+                    value = adminName,
+                    onValueChange = { adminName = it; error = null },
+                    label = { Text("Admin name") },
+                    leadingIcon = { Icon(Icons.Default.Person, null) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    shape = RoundedCornerShape(14.dp),
+                    isError = error != null && adminName.isBlank()
+                )
+                OutlinedTextField(
+                    value = adminPassword,
+                    onValueChange = { adminPassword = it; error = null },
+                    label = { Text("Admin password") },
+                    leadingIcon = { Icon(Icons.Default.Lock, null) },
+                    trailingIcon = {
+                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                            Icon(
+                                if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                if (passwordVisible) "Hide password" else "Show password"
+                            )
+                        }
+                    },
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { submit() }),
+                    shape = RoundedCornerShape(14.dp),
+                    isError = error != null && adminPassword.isBlank()
+                )
+                if (error != null) {
+                    Text(error!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+                Button(
+                    onClick = submit,
+                    modifier = Modifier.fillMaxWidth().height(54.dp),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Icon(Icons.Default.Settings, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Save configuration", fontWeight = FontWeight.Bold)
+                }
+            }
             .imePadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp, vertical = 32.dp),
