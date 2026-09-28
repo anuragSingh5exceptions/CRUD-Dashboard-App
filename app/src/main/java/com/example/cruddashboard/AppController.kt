@@ -32,6 +32,11 @@ class AppController(private val repository: CustomerRepository) {
         return null
     }
 
+    fun signUp(username: String, email: String, password: String): String? {
+        validateSignUpFields(username, email, password)?.let { return it }
+        return login(email, password)
+    }
+
     fun logout() {
         repository.isLoggedIn = false
         isLoggedIn = false
@@ -64,3 +69,6 @@ class AppController(private val repository: CustomerRepository) {
         repository.saveCustomers(customers)
     }
 }
+
+internal fun validateSignUpFields(username: String, email: String, password: String): String? =
+    if (username.isBlank() || email.isBlank() || password.isBlank()) "All fields are required" else null
