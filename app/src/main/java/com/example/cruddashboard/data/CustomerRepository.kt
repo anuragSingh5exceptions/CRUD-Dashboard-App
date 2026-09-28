@@ -60,6 +60,17 @@ class CustomerRepository(context: Context) {
             .putString(KEY_BASE_URL, config.baseUrl)
             .putString(KEY_ADMIN_NAME, config.adminName)
             .putString(KEY_ADMIN_PASSWORD, config.adminPassword)
+    fun passwordFor(email: String): String? =
+        if (preferences.getString(KEY_RESET_EMAIL, null)?.equals(email.trim(), ignoreCase = true) == true) {
+            preferences.getString(KEY_RESET_PASSWORD, null)
+        } else {
+            null
+        }
+
+    fun savePassword(email: String, password: String) {
+        preferences.edit()
+            .putString(KEY_RESET_EMAIL, email.trim())
+            .putString(KEY_RESET_PASSWORD, password)
             .apply()
     }
 
@@ -76,5 +87,7 @@ class CustomerRepository(context: Context) {
         private const val KEY_BASE_URL = "admin_base_url"
         private const val KEY_ADMIN_NAME = "admin_name"
         private const val KEY_ADMIN_PASSWORD = "admin_password"
+        private const val KEY_RESET_EMAIL = "reset_email"
+        private const val KEY_RESET_PASSWORD = "reset_password"
     }
 }

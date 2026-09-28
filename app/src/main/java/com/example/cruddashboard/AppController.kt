@@ -28,6 +28,7 @@ class AppController(private val repository: CustomerRepository) {
         if (email.isBlank() || password.isBlank()) return "Enter your email and password"
         if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches()) return "Enter a valid email address"
         if (password.length < 6) return "Password must be at least 6 characters"
+        if (repository.passwordFor(email)?.let { it != password } == true) return "Incorrect email or password"
         repository.isLoggedIn = true
         isLoggedIn = true
         return null
@@ -36,6 +37,13 @@ class AppController(private val repository: CustomerRepository) {
     fun signUp(username: String, email: String, password: String): String? {
         validateSignUpFields(username, email, password)?.let { return it }
         return login(email, password)
+    }
+
+    fun resetPassword(email: String, newPassword: String, confirmPassword: String): String? {
+        validatePasswordResetFields(email, newPassword, confirmPassword)?.let { return it }
+        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches()) return "Enter a valid email address"
+        repository.savePassword(email, newPassword)
+        return null
     }
 
     fun logout() {
@@ -90,3 +98,10 @@ internal fun validateSignUpFields(username: String, email: String, password: Str
 
 internal fun validateAdminConfigFields(baseUrl: String, adminName: String, adminPassword: String): String? =
     if (baseUrl.isBlank() || adminName.isBlank() || adminPassword.isBlank()) "All fields are required" else null
+internal fun validatePasswordResetFields(email: String, newPassword: String, confirmPassword: String): String? =
+    when {
+        email.isBlank() || newPassword.isBlank() || confirmPassword.isBlank() -> "All fields are required"
+        newPassword.length < 6 -> "Password must be at least 6 characters"
+        newPassword != confirmPassword -> "Passwords do not match"
+        else -> null
+    }

@@ -27,5 +27,15 @@ class AuthValidationTest {
     @Test
     fun `admin configuration accepts non-empty fields`() {
         assertNull(validateAdminConfigFields("https://example.com", "admin", "password"))
+    fun `password reset requires every field`() {
+        assertEquals("All fields are required", validatePasswordResetFields("", "password", "password"))
+        assertEquals("All fields are required", validatePasswordResetFields("user@example.com", "", ""))
+    }
+
+    @Test
+    fun `password reset requires a sufficiently long matching password`() {
+        assertEquals("Password must be at least 6 characters", validatePasswordResetFields("user@example.com", "short", "short"))
+        assertEquals("Passwords do not match", validatePasswordResetFields("user@example.com", "password", "different"))
+        assertNull(validatePasswordResetFields("user@example.com", "password", "password"))
     }
 }
