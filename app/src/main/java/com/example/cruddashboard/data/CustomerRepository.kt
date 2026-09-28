@@ -48,6 +48,20 @@ class CustomerRepository(context: Context) {
         get() = preferences.getBoolean(KEY_SESSION, false)
         set(value) { preferences.edit().putBoolean(KEY_SESSION, value).apply() }
 
+    fun passwordFor(email: String): String? =
+        if (preferences.getString(KEY_RESET_EMAIL, null)?.equals(email.trim(), ignoreCase = true) == true) {
+            preferences.getString(KEY_RESET_PASSWORD, null)
+        } else {
+            null
+        }
+
+    fun savePassword(email: String, password: String) {
+        preferences.edit()
+            .putString(KEY_RESET_EMAIL, email.trim())
+            .putString(KEY_RESET_PASSWORD, password)
+            .apply()
+    }
+
     private fun starterCustomers() = listOf(
         Customer(1, "Aarav Sharma", "aarav@brightlabs.in", "+91 98765 43210", "Bright Labs", CustomerStatus.ACTIVE),
         Customer(2, "Meera Kapoor", "meera@northstar.co", "+91 99887 76655", "Northstar", CustomerStatus.LEAD),
@@ -58,5 +72,7 @@ class CustomerRepository(context: Context) {
     companion object {
         private const val KEY_CUSTOMERS = "customers"
         private const val KEY_SESSION = "logged_in"
+        private const val KEY_RESET_EMAIL = "reset_email"
+        private const val KEY_RESET_PASSWORD = "reset_password"
     }
 }
