@@ -60,6 +60,8 @@ class CustomerRepository(context: Context) {
             .putString(KEY_BASE_URL, config.baseUrl)
             .putString(KEY_ADMIN_NAME, config.adminName)
             .putString(KEY_ADMIN_PASSWORD, config.adminPassword)
+            .apply()
+    }
     fun passwordFor(email: String): String? =
         if (preferences.getString(KEY_RESET_EMAIL, null)?.equals(email.trim(), ignoreCase = true) == true) {
             preferences.getString(KEY_RESET_PASSWORD, null)

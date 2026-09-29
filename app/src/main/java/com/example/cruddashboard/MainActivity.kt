@@ -134,9 +134,12 @@ class MainActivity : ComponentActivity() {
                 val controller = remember { AppController(CustomerRepository(context)) }
                 var showSignUp by remember { mutableStateOf(false) }
                 var showAdminConfig by remember { mutableStateOf(false) }
+                var authScreen by remember { mutableStateOf(AuthScreen.LOGIN) }
                 Surface(modifier = Modifier.fillMaxSize(), color = Canvas) {
                     when {
                         controller.isLoggedIn -> DashboardScreen(controller)
+                        authScreen == AuthScreen.SIGN_UP -> SignUpScreen(controller, onSignIn = { authScreen = AuthScreen.LOGIN })
+                        authScreen == AuthScreen.FORGOT_PASSWORD -> ForgotPasswordScreen(controller, onSignIn = { authScreen = AuthScreen.LOGIN })
                         showAdminConfig -> AdminConfigScreen(
                             initialConfig = controller.loadAdminConfig(),
                             onBack = { showAdminConfig = false },
@@ -149,17 +152,8 @@ class MainActivity : ComponentActivity() {
                         showSignUp -> SignUpScreen(controller, onSignIn = { showSignUp = false })
                         else -> LoginScreen(
                             controller,
-                            onSignUp = { showSignUp = true },
-                            onAdminConfig = { showAdminConfig = true }
-                var authScreen by remember { mutableStateOf(AuthScreen.LOGIN) }
-                Surface(modifier = Modifier.fillMaxSize(), color = Canvas) {
-                    when {
-                        controller.isLoggedIn -> DashboardScreen(controller)
-                        authScreen == AuthScreen.SIGN_UP -> SignUpScreen(controller, onSignIn = { authScreen = AuthScreen.LOGIN })
-                        authScreen == AuthScreen.FORGOT_PASSWORD -> ForgotPasswordScreen(controller, onSignIn = { authScreen = AuthScreen.LOGIN })
-                        else -> LoginScreen(
-                            controller,
                             onSignUp = { authScreen = AuthScreen.SIGN_UP },
+                            onAdminConfig = { showAdminConfig = true },
                             onForgotPassword = { authScreen = AuthScreen.FORGOT_PASSWORD }
                         )
                     }
@@ -170,8 +164,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun LoginScreen(controller: AppController, onSignUp: () -> Unit, onAdminConfig: () -> Unit) {
-private fun LoginScreen(controller: AppController, onSignUp: () -> Unit, onForgotPassword: () -> Unit) {
+private fun LoginScreen(controller: AppController, onSignUp: () -> Unit, onForgotPassword: () -> Unit,onAdminConfig: () -> Unit) {
     var email by remember { mutableStateOf("admin@cliently.app") }
     var password by remember { mutableStateOf("password") }
     var passwordVisible by remember { mutableStateOf(false) }
@@ -250,6 +243,94 @@ private fun LoginScreen(controller: AppController, onSignUp: () -> Unit, onForgo
 }
 
 @Composable
+private fun ForgotPasswordScreen(controller: AppController, onSignIn: () -> Unit) {
+    var email by remember { mutableStateOf("") }
+    var newPassword by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var passwordChanged by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
+    val submit = {
+        focusManager.clearFocus()
+        error = controller.resetPassword(email, newPassword, confirmPassword)
+        passwordChanged = error == null
+    }
+
+    BackHandler(onBack = onSignIn)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Brush.verticalGradient(listOf(Color(0xFFF0F1FF), Canvas, Color.White)))
+            .statusBarsPadding()
+            .imePadding()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp, vertical = 32.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        if (passwordChanged) {
+            Icon(Icons.Default.CheckCircle, null, tint = Mint, modifier = Modifier.size(64.dp))
+            Spacer(Modifier.height(20.dp))
+            Text("Password changed", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold, color = Ink)
+            Text("You can now sign in with your new password.", color = Muted, modifier = Modifier.padding(top = 7.dp, bottom = 24.dp))
+            Button(onClick = onSignIn, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(14.dp)) {
+                Text("Back to sign in", fontWeight = FontWeight.Bold)
+            }
+        } else {
+            Text("Reset password", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold, color = Ink)
+            Text("Enter your email and choose a new password", color = Muted, modifier = Modifier.padding(top = 7.dp, bottom = 30.dp))
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(3.dp),
+                shape = RoundedCornerShape(24.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    OutlinedTextField(
+                        value = email, onValueChange = { email = it; error = null },
+                        label = { Text("Email address") }, leadingIcon = { Icon(Icons.Default.Email, null) },
+                        singleLine = true, modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
+                        shape = RoundedCornerShape(14.dp)
+                    )
+                    OutlinedTextField(
+                        value = newPassword, onValueChange = { newPassword = it; error = null },
+                        label = { Text("New password") }, leadingIcon = { Icon(Icons.Default.Lock, null) },
+                        trailingIcon = {
+                            IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                Icon(if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility, if (passwordVisible) "Hide password" else "Show password")
+                            }
+                        },
+                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        singleLine = true, modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
+                        shape = RoundedCornerShape(14.dp)
+                    )
+                    OutlinedTextField(
+                        value = confirmPassword, onValueChange = { confirmPassword = it; error = null },
+                        label = { Text("Confirm password") }, leadingIcon = { Icon(Icons.Default.Lock, null) },
+                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        singleLine = true, modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { submit() }),
+                        shape = RoundedCornerShape(14.dp), isError = error != null
+                    )
+                    if (error != null) Text(error!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    Button(onClick = submit, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(14.dp)) {
+                        Text("Change password", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+            TextButton(onClick = onSignIn, modifier = Modifier.padding(top = 10.dp)) {
+                Text("Back to sign in")
+            }
+        }
+    }
+}
+
+@Composable
 private fun AdminConfigScreen(
     initialConfig: AdminConfig,
     onBack: () -> Unit,
@@ -267,21 +348,6 @@ private fun AdminConfigScreen(
     }
 
     BackHandler(onBack = onBack)
-private fun ForgotPasswordScreen(controller: AppController, onSignIn: () -> Unit) {
-    var email by remember { mutableStateOf("") }
-    var newPassword by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
-    var passwordVisible by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var passwordChanged by remember { mutableStateOf(false) }
-    val focusManager = LocalFocusManager.current
-    val submit = {
-        focusManager.clearFocus()
-        error = controller.resetPassword(email, newPassword, confirmPassword)
-        passwordChanged = error == null
-    }
-
-    BackHandler(onBack = onSignIn)
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -364,69 +430,6 @@ private fun ForgotPasswordScreen(controller: AppController, onSignIn: () -> Unit
                     Spacer(Modifier.width(8.dp))
                     Text("Save configuration", fontWeight = FontWeight.Bold)
                 }
-            }
-            .imePadding()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 32.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        if (passwordChanged) {
-            Icon(Icons.Default.CheckCircle, null, tint = Mint, modifier = Modifier.size(64.dp))
-            Spacer(Modifier.height(20.dp))
-            Text("Password changed", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold, color = Ink)
-            Text("You can now sign in with your new password.", color = Muted, modifier = Modifier.padding(top = 7.dp, bottom = 24.dp))
-            Button(onClick = onSignIn, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(14.dp)) {
-                Text("Back to sign in", fontWeight = FontWeight.Bold)
-            }
-        } else {
-            Text("Reset password", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold, color = Ink)
-            Text("Enter your email and choose a new password", color = Muted, modifier = Modifier.padding(top = 7.dp, bottom = 30.dp))
-
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(3.dp),
-                shape = RoundedCornerShape(24.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    OutlinedTextField(
-                        value = email, onValueChange = { email = it; error = null },
-                        label = { Text("Email address") }, leadingIcon = { Icon(Icons.Default.Email, null) },
-                        singleLine = true, modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
-                        shape = RoundedCornerShape(14.dp)
-                    )
-                    OutlinedTextField(
-                        value = newPassword, onValueChange = { newPassword = it; error = null },
-                        label = { Text("New password") }, leadingIcon = { Icon(Icons.Default.Lock, null) },
-                        trailingIcon = {
-                            IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                                Icon(if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility, if (passwordVisible) "Hide password" else "Show password")
-                            }
-                        },
-                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                        singleLine = true, modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
-                        shape = RoundedCornerShape(14.dp)
-                    )
-                    OutlinedTextField(
-                        value = confirmPassword, onValueChange = { confirmPassword = it; error = null },
-                        label = { Text("Confirm password") }, leadingIcon = { Icon(Icons.Default.Lock, null) },
-                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                        singleLine = true, modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
-                        keyboardActions = KeyboardActions(onDone = { submit() }),
-                        shape = RoundedCornerShape(14.dp), isError = error != null
-                    )
-                    if (error != null) Text(error!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                    Button(onClick = submit, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(14.dp)) {
-                        Text("Change password", fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-            TextButton(onClick = onSignIn, modifier = Modifier.padding(top = 10.dp)) {
-                Text("Back to sign in")
             }
         }
     }
